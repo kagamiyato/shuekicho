@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --paper:#F5F2EA;
@@ -290,9 +290,19 @@
   table.breakdown tr:last-child td{border-bottom:none;}
   table.breakdown tr.total-row td{font-weight:700;border-top:2px solid var(--ink);border-bottom:none;background:#FBF9F2;}
 
+  .chart-grid{
+    display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:18px;
+  }
   .chart-card{
     background:var(--white);border:1px solid var(--paper-line);border-radius:4px;
-    padding:20px 18px 10px;box-shadow:var(--shadow);margin-top:18px;
+    padding:16px 16px 14px;box-shadow:var(--shadow);
+  }
+  .chart-card-title{
+    font-size:12px;font-weight:700;color:var(--gray);margin:0 0 10px;letter-spacing:.03em;
+  }
+  .chart-wrap{position:relative;height:220px;}
+  @media (max-width:620px){
+    .chart-grid{grid-template-columns:1fr;}
   }
   canvas{max-width:100%;}
 
@@ -527,6 +537,7 @@
   const excludeInput = document.getElementById("excludeKeywords");
 
   let chartInstance = null;
+  let compositionChartInstance = null;
 
   function guessColumn(headers, keywords){
     for(const h of headers){
@@ -902,8 +913,15 @@
           <tr class="total-row"><td>合計</td><td class="num">${formatYen(agg.grandTotal)}</td><td class="num">100.0%</td></tr>
         </tbody>
       </table>
-      <div class="chart-card">
-        <canvas id="monthlyChart" height="90"></canvas>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <p class="chart-card-title">月ごとの推移</p>
+          <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <p class="chart-card-title">${escapeHtml(c.sourceLabel)}別の構成比</p>
+          <div class="chart-wrap"><canvas id="compositionChart"></canvas></div>
+        </div>
       </div>
       <div class="notice">
         副業として${escapeHtml(c.incomeWord)}を得ている場合、給与以外の所得が年間<b>20万円</b>を超えると確定申告が必要になるケースがあります（専業の場合は基礎控除等により基準が異なります）。正確な基準や制度改正の有無は、必ず<b>国税庁の最新情報</b>でご確認ください。
@@ -911,6 +929,7 @@
     `;
 
     renderChart(aspLabels, monthKeys, agg.perMonth);
+    renderCompositionChart(aspLabels, agg.perAsp);
   }
 
   function formatYen(n){
@@ -925,20 +944,61 @@
       data: monthKeys.map(m => Math.round((perMonth[m] && perMonth[m][label]) || 0)),
       backgroundColor: COLORS[idx % COLORS.length],
       stack: "s",
+      borderRadius: 3,
     }));
     if(chartInstance) chartInstance.destroy();
+    if(monthKeys.length === 0){
+      chartInstance = null;
+      return;
+    }
     chartInstance = new Chart(ctx, {
       type: "bar",
       data: { labels: monthKeys, datasets: datasets },
       options: {
         responsive:true,
+        maintainAspectRatio:false,
         plugins:{
-          legend:{ position:"bottom", labels:{ font:{ family:"'Noto Sans JP', sans-serif", size:11 } } },
+          legend:{ display: aspLabels.length > 1, position:"bottom", labels:{ boxWidth:10, font:{ family:"'Noto Sans JP', sans-serif", size:11 } } },
           tooltip:{ callbacks:{ label:(c)=> c.dataset.label + "：¥" + c.parsed.y.toLocaleString("ja-JP") } }
         },
         scales:{
           x:{ stacked:true, grid:{ display:false }, ticks:{ font:{ family:"'Zen Kaku Gothic New', sans-serif", size:11 } } },
           y:{ stacked:true, ticks:{ callback:(v)=> "¥"+Number(v).toLocaleString("ja-JP"), font:{size:11} }, grid:{ color:"#E3DCC9" } }
+        }
+      }
+    });
+  }
+
+  function renderCompositionChart(aspLabels, perAsp){
+    const ctx = document.getElementById("compositionChart");
+    if(!ctx) return;
+    if(compositionChartInstance) compositionChartInstance.destroy();
+    if(aspLabels.length === 0){
+      compositionChartInstance = null;
+      return;
+    }
+    compositionChartInstance = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: aspLabels,
+        datasets: [{
+          data: aspLabels.map(l => Math.round(perAsp[l] || 0)),
+          backgroundColor: aspLabels.map((_, idx) => COLORS[idx % COLORS.length]),
+          borderColor: "#F5F2EA",
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive:true,
+        maintainAspectRatio:false,
+        cutout: "62%",
+        plugins:{
+          legend:{ position:"bottom", labels:{ boxWidth:10, font:{ family:"'Noto Sans JP', sans-serif", size:11 } } },
+          tooltip:{ callbacks:{ label:(c)=> {
+            const total = c.dataset.data.reduce((a,b)=>a+b,0);
+            const pct = total ? (c.parsed / total * 100).toFixed(1) : "0.0";
+            return c.label + "：¥" + c.parsed.toLocaleString("ja-JP") + "（" + pct + "%）";
+          } } }
         }
       }
     });
