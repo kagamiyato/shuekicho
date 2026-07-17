@@ -178,6 +178,30 @@
   .accounting-card b{font-size:14px;}
   .accounting-card span{font-size:12px;color:var(--gray);}
 
+  .pro-plans{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px;
+  }
+  .pro-plan-card{
+    background:var(--white);border:1px solid var(--paper-line);border-radius:4px;
+    padding:20px 20px 18px;box-shadow:var(--shadow);text-align:center;
+  }
+  .pro-plan-card.featured{border:2px solid var(--hanko);}
+  .pro-plan-label{
+    font-size:13px;font-weight:700;color:var(--gray);margin-bottom:8px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .pro-plan-badge{
+    font-size:10.5px;font-weight:700;color:var(--hanko-deep);background:#FBEEEA;
+    border:1px solid #EFD3C9;padding:2px 8px;border-radius:10px;
+  }
+  .pro-plan-price{
+    font-family:'Shippori Mincho',serif;font-weight:700;font-size:30px;color:var(--ink);
+    margin-bottom:16px;font-variant-numeric:tabular-nums;
+  }
+  .pro-plan-price .yen{font-size:.55em;color:var(--gray);margin-right:2px;}
+  .pro-plan-unit{font-size:13px;font-weight:500;color:var(--gray);margin-left:4px;}
+  .pro-plan-card .btn{width:100%;text-decoration:none;text-align:center;display:block;}
+
   .add-generic{
     grid-column:1/-1;
     display:flex;align-items:center;gap:10px;
@@ -353,7 +377,7 @@
     <p class="lede" id="modeLede"></p>
     <div class="trust-badge">
       <span class="trust-dot"></span>
-      <span><b>通信は一切発生しません。</b>読み込んだCSVはこのタブの中だけで処理され、どこにも送信されません。</span>
+      <span><b>収益データは一切送信されません。</b>読み込んだCSVはこのタブの中だけで処理され、どこにも送信されません（Pro会員確認をご利用の場合のみ、入力したメールアドレスを当サイトのサーバーに送信します）。</span>
     </div>
   </header>
 
@@ -446,7 +470,35 @@
       <h2><span class="section-no">06</span> Pro版について</h2>
     </div>
     <div class="notice" style="border-left-color:var(--hanko);">
-      無料版は<b>同時に2つの媒体・ASP</b>まで集計できます。3つ以上を同時に集計したい方、複数年の比較、青色申告向けの科目別フォーマット出力が必要な方向けに、買い切り型のPro版を用意予定です（サーバー通信なしの設計を保つため、Pro版は購入者だけがダウンロードできる別ファイルとして配布します。オンラインでの決済認証は行いません）。
+      無料版は<b>同時に2つの媒体・ASP</b>まで集計できます。Pro版にご登録いただくと、同時に集計できる媒体・ASP数の制限が解除されます（今後、複数年比較や青色申告向けフォーマット出力などの機能追加も予定しています）。
+    </div>
+    <div class="pro-plans">
+      <div class="pro-plan-card">
+        <div class="pro-plan-label">月額プラン</div>
+        <div class="pro-plan-price"><span class="yen">¥</span>500<span class="pro-plan-unit">／月（税込）</span></div>
+        <a class="btn btn-outline" href="https://buy.stripe.com/bJe14pgjtfTt1J036L0RG02" target="_blank" rel="noopener">月額プランに登録</a>
+      </div>
+      <div class="pro-plan-card featured">
+        <div class="pro-plan-label">年額プラン<span class="pro-plan-badge">2ヶ月分お得</span></div>
+        <div class="pro-plan-price"><span class="yen">¥</span>5,000<span class="pro-plan-unit">／年（税込）</span></div>
+        <a class="btn btn-primary" href="https://buy.stripe.com/aFa00laZ90Yz5Zg8r50RG01" target="_blank" rel="noopener">年額プランに登録</a>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:12px;">お申し込みはStripeの決済ページに移動します。いつでも解約可能です。詳しくは<a href="/terms.html">利用規約</a>をご確認ください。</p>
+
+    <div class="pro-check">
+      <div class="section-head" style="border-bottom:1px solid var(--paper-line);margin-top:28px;">
+        <h2 style="font-size:15px;">すでにPro版にご登録済みの方</h2>
+      </div>
+      <p class="hint">ご登録時のメールアドレスを入力すると、このブラウザで制限を解除できます（ページを再読み込みすると、再度この確認が必要です）。</p>
+      <div class="filter-row" style="margin-top:10px;">
+        <div class="filter-field">
+          <label for="proEmailInput">メールアドレス</label>
+          <input type="email" id="proEmailInput" placeholder="ご登録時のメールアドレス">
+        </div>
+        <button class="btn btn-outline" id="proCheckBtn" type="button">確認する</button>
+      </div>
+      <p class="hint" id="proCheckResult" style="margin-top:10px;"></p>
     </div>
   </section>
 
@@ -517,7 +569,7 @@
   ];
 
   const FREE_LIMIT = 2;
-  const IS_PRO = false; // Pro版は別ファイル配布のため、この公開版では常にfalse
+  let IS_PRO = false; // Pro会員確認（/api/check-pro）が通ると true に更新される
 
   const DATE_KEYWORDS = ["日付","発生日","成果発生日","確定日","対象月","年月","注文日","申込日","配信日"];
   const AMOUNT_KEYWORDS = ["報酬金額","成果報酬","報酬額","確定報酬","金額","報酬","投げ銭額","スパチャ額"];
@@ -612,7 +664,7 @@
     lockCard.innerHTML = `
       <div class="lock-inner">
         <b>🔒 3${escapeHtml(c.sourceLabel)}目以降</b>
-        <p>無料版は同時${FREE_LIMIT}媒体まで。<br>Pro版（買い切り・準備中）で解放されます</p>
+        <p>無料版は同時${FREE_LIMIT}媒体まで。<br>Pro版（月額・年額）で解放されます</p>
         <button class="pro-link-btn" id="scrollToProBtn">Pro版について見る</button>
       </div>
     `;
@@ -644,7 +696,7 @@
   function showLimitMessage(){
     alert(
       "無料版で同時に集計できるのは" + FREE_LIMIT + "" + cfg().sourceLabel + "までです。\n" +
-      "3つ目以降を同時に集計したい場合は、買い切り型のPro版（準備中）をご利用ください。\n\n" +
+      "3つ目以降を同時に集計したい場合は、Pro版（月額¥500・年額¥5,000）をご利用ください。\n\n" +
       "※ 今取り込んでいる媒体をいったん「削除」してから、別の媒体を試すことは無料版でも可能です。"
     );
   }
@@ -1129,6 +1181,35 @@
     buildSourceCards();
     renderAll();
   }
+
+  // ---------- Pro membership check ----------
+  document.getElementById("proCheckBtn").addEventListener("click", async function(){
+    const input = document.getElementById("proEmailInput");
+    const resultEl = document.getElementById("proCheckResult");
+    const email = input.value.trim();
+
+    if(!email){
+      resultEl.textContent = "メールアドレスを入力してください。";
+      return;
+    }
+
+    resultEl.textContent = "確認中…";
+    try{
+      const res = await fetch("/api/check-pro?email=" + encodeURIComponent(email));
+      const data = await res.json();
+      if(data.pro){
+        IS_PRO = true;
+        resultEl.textContent = "✓ Pro会員として確認できました。制限が解除されます。";
+        buildSourceCards();
+        renderAll();
+      } else {
+        IS_PRO = false;
+        resultEl.textContent = "Pro会員として確認できませんでした。ご登録直後の場合は数分待ってから再度お試しください。";
+      }
+    }catch(e){
+      resultEl.textContent = "確認中にエラーが発生しました。時間をおいて再度お試しください。";
+    }
+  });
 
   applyModeText();
   buildSourceCards();

@@ -1,7 +1,12 @@
 {
   "name": "shuekicho",
   "compatibility_date": "2026-07-17",
+  "main": "src/worker.js",
   "assets": {
-    "directory": "./"
-  }
+    "directory": "./",
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    { "binding": "PRO_MEMBERS", "id": "【ここにKV NamespaceのIDを入れてください】" }
+  ]
 }
