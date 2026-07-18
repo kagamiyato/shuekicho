@@ -160,6 +160,7 @@
   }
 
   .accounting-block{margin-top:20px;}
+  .accounting-import-block{margin-top:24px;padding-top:16px;border-top:1px dashed var(--paper-line);}
   .pr-label{
     display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;
     color:var(--gray);border:1px solid var(--gray-light);border-radius:2px;
@@ -184,7 +185,9 @@
   .pro-plan-card{
     background:var(--white);border:1px solid var(--paper-line);border-radius:4px;
     padding:20px 20px 18px;box-shadow:var(--shadow);text-align:center;
+    display:flex;flex-direction:column;
   }
+  .pro-plan-card .btn{margin-top:auto;}
   .pro-plan-card.featured{border:2px solid var(--hanko);}
   .pro-plan-label{
     font-size:13px;font-weight:700;color:var(--gray);margin-bottom:8px;
@@ -535,6 +538,18 @@
       <b>このツールは確定申告書ではありません。</b>あくまで収益を集計するための補助ツールです。所得区分の判定や実際の申告内容については、国税庁の情報をご確認いただくか、税理士等の専門家にご相談ください。
     </div>
 
+    <div class="accounting-import-block">
+      <div class="section-head" style="border-bottom:1px solid var(--paper-line);">
+        <h2 style="font-size:15px;">会計ソフト別インポート形式で書き出す<span class="pr-label" style="border-color:var(--seal-green);color:var(--seal-green);">Pro</span></h2>
+      </div>
+      <p class="hint">各社が公開しているCSVインポート仕様に合わせて列を並べ替えたファイルを書き出します。勘定科目や税区分は仮の初期値です。取り込み後に内容をご確認のうえ、必要に応じて修正してください。</p>
+      <div class="export-row" style="margin-top:10px;">
+        <button class="btn btn-outline" id="exportFreeeBtn">freee形式で書き出す</button>
+        <button class="btn btn-outline" id="exportYayoiBtn">やよいの青色申告形式で書き出す</button>
+        <button class="btn btn-outline" id="exportMfBtn">マネーフォワード形式で書き出す</button>
+      </div>
+    </div>
+
     <div class="accounting-block">
       <div class="section-head" style="border-bottom:1px solid var(--paper-line);">
         <h2 style="font-size:15px;">書き出した数字を、そのまま会計ソフトへ<span class="pr-label">PR</span></h2>
@@ -664,9 +679,9 @@
   };
 
   const ACCOUNTING_SOFTWARE = [
-    {name:"freee会計", desc:"CSV取り込みでそのまま仕訳。個人事業主向けプランあり。", url:"https://px.a8.net/svt/ejp?a8mat=4B83D0+8M6UYA+3SPO+9FL80Y"},
-    {name:"やよいの青色申告 オンライン", desc:"確定申告ソフトの定番。初年度無料プランあり。", url:"https://px.a8.net/svt/ejp?a8mat=4B83D0+8NZ5RM+35XE+5YJRM"},
-    {name:"マネーフォワード クラウド確定申告", desc:"銀行・カード連携が豊富。自動仕訳に強み。", url:"https://px.a8.net/svt/ejp?a8mat=4B83D0+8QYBSI+4JGQ+BZ0Z6"},
+    {name:"freee会計", desc:"明細取得・レシート撮影まで自動化したい方に。仕訳の自動判定に強み。", url:"https://px.a8.net/svt/ejp?a8mat=4B83D0+8M6UYA+3SPO+9FL80Y"},
+    {name:"やよいの青色申告 オンライン", desc:"簿記の知識がなくても迷わず使いたい方に。初年度無料キャンペーンあり。", url:"https://px.a8.net/svt/ejp?a8mat=4B83D0+8NZ5RM+35XE+5YJRM"},
+    {name:"マネーフォワード クラウド確定申告", desc:"銀行・カード連携を幅広くカバーしたい方に。2,000以上のサービスに対応。", url:"https://px.a8.net/svt/ejp?a8mat=4B83D0+8QYBSI+4JGQ+BZ0Z6"},
   ];
 
   const FREE_LIMIT = 2;
@@ -1415,6 +1430,89 @@
     if(s.includes(",") || s.includes('"')) return '"' + s.replace(/"/g,'""') + '"';
     return s;
   }
+
+  // ---------- 会計ソフト別インポート形式で書き出す（Pro機能） ----------
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  // 収益帳の集計結果（月×媒体・ASP）を、各社の会計ソフトへの取り込みを想定した行データに変換する
+  function computeMonthlyRowsForExport(){
+    const agg = computeAggregates();
+    const rows = [];
+    Object.keys(agg.perMonth).sort().forEach(key=>{
+      const aspMap = agg.perMonth[key];
+      let dateStr, noteSuffix = "";
+      if(key === "不明"){
+        const now = new Date();
+        dateStr = now.getFullYear() + "/" + pad2(now.getMonth()+1) + "/" + pad2(now.getDate());
+        noteSuffix = "（日付不明分）";
+      } else {
+        const m = key.match(/^(\d{4})-(\d{2})$/);
+        if(!m) return;
+        const y = parseInt(m[1],10), mo = parseInt(m[2],10);
+        const lastDay = new Date(y, mo, 0).getDate();
+        dateStr = y + "/" + pad2(mo) + "/" + pad2(lastDay);
+      }
+      Object.keys(aspMap).forEach(asp=>{
+        const amt = Math.round(aspMap[asp] || 0);
+        if(!amt) return;
+        rows.push({ date: dateStr, asp: asp, amount: amt, note: asp + noteSuffix });
+      });
+    });
+    return rows;
+  }
+
+  // 収益帳では事業所得か雑所得かをユーザーごとに判定できないため、
+  // ひとまず「雑収入」を初期値として書き出す（取り込み後に会計ソフト側で修正可能）
+  const EXPORT_DEFAULT_ACCOUNT = "雑収入";
+
+  function guardAccountingExport(){
+    if(!IS_PRO){
+      alert(
+        "会計ソフト別インポート形式での書き出しはPro版限定の機能です。\n" +
+        "Pro版（月額¥500・年額¥5,000）にご登録いただくとご利用いただけます。"
+      );
+      document.getElementById("proSection").scrollIntoView({behavior:"smooth"});
+      return false;
+    }
+    if(st().files.length === 0){
+      alert("先にCSVを取り込んで集計結果を表示してください。");
+      return false;
+    }
+    return true;
+  }
+
+  document.getElementById("exportFreeeBtn").addEventListener("click", function(){
+    if(!guardAccountingExport()) return;
+    const rows = computeMonthlyRowsForExport();
+    // freee「収入データ」インポート形式（必須項目: 発生日,収支区分,勘定科目,金額,税区分）に準拠
+    let csv = "収支区分,発生日,勘定科目,金額,税区分,備考\n";
+    rows.forEach(r=>{
+      csv += `収入,${r.date},${csvEscape(EXPORT_DEFAULT_ACCOUNT)},${r.amount},対象外,${csvEscape(r.note)}\n`;
+    });
+    downloadText("﻿" + csv, cfg().exportPrefix + "-freee.csv", "text/csv");
+  });
+
+  document.getElementById("exportYayoiBtn").addEventListener("click", function(){
+    if(!guardAccountingExport()) return;
+    const rows = computeMonthlyRowsForExport();
+    // やよいの青色申告オンライン「スマート取引取込」の未設定フォーマット（取引日,入金額,出金額,摘要）に準拠
+    let csv = "取引日,入金額,出金額,摘要\n";
+    rows.forEach(r=>{
+      csv += `${r.date},${r.amount},,${csvEscape(r.note)}\n`;
+    });
+    downloadText("﻿" + csv, cfg().exportPrefix + "-yayoi.csv", "text/csv");
+  });
+
+  document.getElementById("exportMfBtn").addEventListener("click", function(){
+    if(!guardAccountingExport()) return;
+    const rows = computeMonthlyRowsForExport();
+    // マネーフォワード クラウド確定申告「仕訳帳」インポート形式に準拠
+    let csv = "取引No,取引日,勘定科目,補助科目,部門,取引先,税区分,インボイス,金額(円),摘要,タグ,メモ\n";
+    rows.forEach((r,i)=>{
+      csv += `${i+1},${r.date},${csvEscape(EXPORT_DEFAULT_ACCOUNT)},,,,,,${r.amount},${csvEscape(r.note)},,\n`;
+    });
+    downloadText("﻿" + csv, cfg().exportPrefix + "-moneyforward.csv", "text/csv");
+  });
 
   document.getElementById("exportJsonBtn").addEventListener("click", function(){
     const payload = { savedAt: new Date().toISOString(), mode: currentMode, excludeKeywords: excludeInput.value, files: st().files };
