@@ -202,6 +202,17 @@
   .pro-plan-unit{font-size:13px;font-weight:500;color:var(--gray);margin-left:4px;}
   .pro-plan-card .btn{width:100%;text-decoration:none;text-align:center;display:block;}
 
+  .pro-feature-list{
+    list-style:none;margin:14px 0 0;padding:0;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px;
+  }
+  .pro-feature-list li{
+    font-size:13.5px;color:var(--ink);padding-left:22px;position:relative;
+  }
+  .pro-feature-list li::before{
+    content:"✓";position:absolute;left:0;top:0;color:var(--hanko);font-weight:700;
+  }
+
   .add-generic{
     grid-column:1/-1;
     display:flex;align-items:center;gap:10px;
@@ -538,8 +549,16 @@
       <h2><span class="section-no">06</span> Pro版について</h2>
     </div>
     <div class="notice" style="border-left-color:var(--hanko);">
-      無料版は<b>同時に2つの媒体・ASP</b>まで集計できます。Pro版にご登録いただくと、同時に集計できる媒体・ASP数の制限が解除されるほか、年別比較グラフ・20万円ラインアラート・税理士渡し用レポート・確定申告チェックリストがご利用いただけます（青色申告向けフォーマット出力など、さらなる機能追加も予定しています）。
+      無料版は<b>同時に2つの媒体・ASP</b>まで集計できます。Pro版にご登録いただくと、次の機能がご利用いただけます。
     </div>
+    <ul class="pro-feature-list">
+      <li>同時に集計できる媒体・ASP数の制限解除</li>
+      <li>年別比較・トレンドグラフ</li>
+      <li>20万円ラインアラート</li>
+      <li>税理士渡し用PDFレポート</li>
+      <li>確定申告チェックリスト</li>
+    </ul>
+    <p class="hint" style="margin-top:8px;">青色申告向けフォーマット出力など、さらなる機能追加も予定しています。</p>
     <div class="pro-plans">
       <div class="pro-plan-card">
         <div class="pro-plan-label">月額プラン</div>
@@ -558,7 +577,7 @@
       <div class="section-head" style="border-bottom:1px solid var(--paper-line);margin-top:28px;">
         <h2 style="font-size:15px;">すでにPro版にご登録済みの方</h2>
       </div>
-      <p class="hint">ご登録時のメールアドレスを入力すると、このブラウザで制限を解除できます（ページを再読み込みすると、再度この確認が必要です）。</p>
+      <p class="hint">ご登録時のメールアドレスを入力すると、このブラウザで制限を解除できます。確認済みのメールアドレスはこのブラウザに保存され、次回開いたときも自動的に反映されます。</p>
       <div class="filter-row" style="margin-top:10px;">
         <div class="filter-field">
           <label for="proEmailInput">メールアドレス</label>
@@ -567,6 +586,7 @@
         <button class="btn btn-outline" id="proCheckBtn" type="button">確認する</button>
       </div>
       <p class="hint" id="proCheckResult" style="margin-top:10px;"></p>
+      <p class="hint" id="proSwitchLinkWrap" style="margin-top:6px;display:none;"><a href="#" id="proSwitchLink">別のメールアドレスに切り替える</a></p>
     </div>
   </section>
 
@@ -1535,37 +1555,87 @@
   }
 
   // ---------- Pro membership check ----------
-  document.getElementById("proCheckBtn").addEventListener("click", async function(){
-    const input = document.getElementById("proEmailInput");
+  const PRO_EMAIL_KEY = "shuekicho_pro_email";
+
+  function setProSwitchLinkVisible(visible){
+    const wrap = document.getElementById("proSwitchLinkWrap");
+    if(wrap) wrap.style.display = visible ? "" : "none";
+  }
+
+  async function checkProEmail(email, opts){
+    opts = opts || {};
     const resultEl = document.getElementById("proCheckResult");
-    const email = input.value.trim();
-
     if(!email){
-      resultEl.textContent = "メールアドレスを入力してください。";
-      return;
+      if(!opts.silent) resultEl.textContent = "メールアドレスを入力してください。";
+      return false;
     }
-
-    resultEl.textContent = "確認中…";
+    if(!opts.silent) resultEl.textContent = "確認中…";
     try{
       const res = await fetch("/api/check-pro?email=" + encodeURIComponent(email));
       const data = await res.json();
       if(data.pro){
         IS_PRO = true;
         resultEl.textContent = "✓ Pro会員として確認できました。制限が解除されます。";
+        try{ localStorage.setItem(PRO_EMAIL_KEY, email); }catch(e){}
+        setProSwitchLinkVisible(true);
         buildSourceCards();
         renderAll();
+        return true;
       } else {
         IS_PRO = false;
-        resultEl.textContent = "Pro会員として確認できませんでした。ご登録直後の場合は数分待ってから再度お試しください。";
+        if(!opts.silent){
+          resultEl.textContent = "Pro会員として確認できませんでした。ご登録直後の場合は数分待ってから再度お試しください。";
+        } else {
+          // 保存されていたメールアドレスが無効になっていた場合は保存をクリアする
+          try{ localStorage.removeItem(PRO_EMAIL_KEY); }catch(e){}
+          setProSwitchLinkVisible(false);
+        }
+        return false;
       }
     }catch(e){
-      resultEl.textContent = "確認中にエラーが発生しました。時間をおいて再度お試しください。";
+      if(!opts.silent) resultEl.textContent = "確認中にエラーが発生しました。時間をおいて再度お試しください。";
+      return false;
     }
+  }
+
+  document.getElementById("proCheckBtn").addEventListener("click", function(){
+    const input = document.getElementById("proEmailInput");
+    checkProEmail(input.value.trim());
+  });
+
+  document.getElementById("proSwitchLink").addEventListener("click", function(e){
+    e.preventDefault();
+    try{ localStorage.removeItem(PRO_EMAIL_KEY); }catch(err){}
+    IS_PRO = false;
+    document.getElementById("proEmailInput").value = "";
+    document.getElementById("proCheckResult").textContent = "";
+    setProSwitchLinkVisible(false);
+    buildSourceCards();
+    renderAll();
+    document.getElementById("proEmailInput").focus();
   });
 
   applyModeText();
   buildSourceCards();
   renderAll();
+
+  // 保存済みのPro確認メールアドレスがあれば自動で再確認する
+  (function restoreProEmail(){
+    let savedEmail = "";
+    try{ savedEmail = localStorage.getItem(PRO_EMAIL_KEY) || ""; }catch(e){}
+    if(savedEmail){
+      document.getElementById("proEmailInput").value = savedEmail;
+      document.getElementById("proCheckResult").textContent = "確認中…";
+      checkProEmail(savedEmail, {silent:true}).then(function(ok){
+        const resultEl = document.getElementById("proCheckResult");
+        if(ok){
+          setProSwitchLinkVisible(true);
+        } else {
+          resultEl.textContent = "";
+        }
+      });
+    }
+  })();
 })();
 </script>
 </body>
