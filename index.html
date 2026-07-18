@@ -336,6 +336,33 @@
   }
   .notice b{color:var(--ink);}
 
+  /* ---------- 20万円ラインアラート ---------- */
+  .threshold-banner{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:14px 18px;border-radius:3px;font-size:13px;margin-bottom:16px;
+    border:1px solid var(--paper-line);
+  }
+  .threshold-banner b{font-variant-numeric:tabular-nums;}
+  .threshold-banner .tag{
+    font-size:10.5px;font-weight:700;letter-spacing:.03em;
+    padding:2px 7px;border-radius:2px;flex:none;
+  }
+  .threshold-banner.watch{background:#FBF6E4;border-left:4px solid var(--gray-light);color:var(--ink-soft);}
+  .threshold-banner.watch .tag{background:var(--gray-light);color:var(--white);}
+  .threshold-banner.alert{background:#FBEEEA;border-left:4px solid var(--hanko);color:var(--ink);}
+  .threshold-banner.alert .tag{background:var(--hanko);color:var(--white);}
+  .threshold-banner .pro-link-btn{margin-left:auto;}
+
+  /* ---------- chart-card ロック（複数年比較など） ---------- */
+  .chart-card.locked{
+    background:repeating-linear-gradient(-45deg, var(--white), var(--white) 8px, #EFEADC 8px, #EFEADC 9px);
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    border-style:dashed;color:var(--gray);
+  }
+  .chart-card.locked b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:6px;}
+  .chart-card.locked p{font-size:11.5px;margin:0 0 10px;color:var(--gray);}
+  .chart-card.full{grid-column:1/-1;}
+
   /* ---------- Export ---------- */
   .export-row{display:flex;gap:12px;flex-wrap:wrap;}
   .btn{
@@ -361,6 +388,46 @@
   @media (max-width:560px){
     .total-sub{margin-left:0;}
   }
+
+  /* ---------- 税理士渡し用レポート（印刷/PDF保存） ---------- */
+  #reportPrintRoot{display:none;}
+  .report-title{font-family:'Shippori Mincho',serif;font-size:22px;margin:0 0 4px;}
+  .report-meta{font-size:12px;color:var(--gray);margin:0 0 20px;}
+  .report-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+  .report-table th,.report-table td{border:1px solid #999;padding:8px 10px;font-size:13px;text-align:left;}
+  .report-table td.num,.report-table th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .report-total{font-size:16px;font-weight:700;margin:14px 0;}
+  .report-note{font-size:11.5px;color:#555;border-top:1px solid #999;padding-top:10px;margin-top:20px;}
+  @media print{
+    body.report-mode > .wrap > *:not(#reportPrintRoot){display:none !important;}
+    body.report-mode #reportPrintRoot{display:block !important;}
+    body.report-mode{background:#fff;}
+  }
+
+  /* ---------- 確定申告チェックリスト（Pro機能） ---------- */
+  .checklist-locked{
+    background:repeating-linear-gradient(-45deg, var(--white), var(--white) 8px, #EFEADC 8px, #EFEADC 9px);
+    border:1px dashed var(--gray-light);border-radius:4px;
+    padding:26px;text-align:center;color:var(--gray);
+  }
+  .checklist-locked b{display:block;color:var(--ink);font-size:14px;margin-bottom:6px;}
+  .checklist-locked p{font-size:12.5px;margin:0 0 10px;}
+  .deadline-block{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    background:var(--white);border:1px solid var(--paper-line);border-radius:4px;
+    padding:20px 22px;box-shadow:var(--shadow);margin-bottom:16px;
+  }
+  .deadline-figure{font-family:'Shippori Mincho',serif;font-weight:700;font-size:32px;color:var(--hanko);font-variant-numeric:tabular-nums;}
+  .deadline-label{font-size:12.5px;color:var(--gray);}
+  .checklist-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .checklist-list li{
+    display:flex;align-items:flex-start;gap:10px;
+    background:var(--white);border:1px solid var(--paper-line);border-radius:4px;
+    padding:12px 14px;font-size:13.5px;box-shadow:var(--shadow);
+  }
+  .checklist-list li.done{opacity:.55;text-decoration:line-through;}
+  .checklist-list input[type=checkbox]{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--seal-green);}
+  .checklist-reset{margin-top:12px;}
 </style>
 </head>
 <body>
@@ -450,6 +517,7 @@
         JSONを読み込む
         <input type="file" id="importJsonInput" accept=".json" style="display:none;">
       </label>
+      <button class="btn btn-outline" id="pdfReportBtn">税理士渡し用レポートを印刷/PDF保存<span class="pr-label" style="border-color:var(--seal-green);color:var(--seal-green);">Pro</span></button>
     </div>
     <div class="notice">
       <b>このツールは確定申告書ではありません。</b>あくまで収益を集計するための補助ツールです。所得区分の判定や実際の申告内容については、国税庁の情報をご確認いただくか、税理士等の専門家にご相談ください。
@@ -465,12 +533,12 @@
   </section>
 
   <!-- 6. Pro -->
-  <section>
+  <section id="proSection">
     <div class="section-head">
       <h2><span class="section-no">06</span> Pro版について</h2>
     </div>
     <div class="notice" style="border-left-color:var(--hanko);">
-      無料版は<b>同時に2つの媒体・ASP</b>まで集計できます。Pro版にご登録いただくと、同時に集計できる媒体・ASP数の制限が解除されます（今後、複数年比較や青色申告向けフォーマット出力などの機能追加も予定しています）。
+      無料版は<b>同時に2つの媒体・ASP</b>まで集計できます。Pro版にご登録いただくと、同時に集計できる媒体・ASP数の制限が解除されるほか、年別比較グラフ・20万円ラインアラート・税理士渡し用レポート・確定申告チェックリストがご利用いただけます（青色申告向けフォーマット出力など、さらなる機能追加も予定しています）。
     </div>
     <div class="pro-plans">
       <div class="pro-plan-card">
@@ -501,6 +569,16 @@
       <p class="hint" id="proCheckResult" style="margin-top:10px;"></p>
     </div>
   </section>
+
+  <!-- 7. Checklist -->
+  <section id="checklistSection">
+    <div class="section-head">
+      <h2><span class="section-no">07</span> 確定申告チェックリスト<span class="pr-label" style="border-color:var(--seal-green);color:var(--seal-green);">Pro</span></h2>
+    </div>
+    <div id="checklistArea"></div>
+  </section>
+
+  <div id="reportPrintRoot"></div>
 
   <footer>
     <p>すべての集計処理はこのブラウザタブの中で完結しており、サーバーへのアップロードは一切行われません（開発者ツールのネットワークタブでご確認いただけます）。</p>
@@ -598,6 +676,7 @@
 
   let chartInstance = null;
   let compositionChartInstance = null;
+  let yearlyChartInstance = null;
 
   function guessColumn(headers, keywords){
     for(const h of headers){
@@ -958,7 +1037,26 @@
       return `<tr><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS[idx%COLORS.length]};margin-right:8px;"></span>${escapeHtml(label)}</td><td class="num">${formatYen(v)}</td><td class="num">${pct}%</td></tr>`;
     }).join("");
 
+    const yearly = computeYearlyBreakdown(agg.perMonth);
+    const thresholdBannerHtml = renderThresholdBanner(yearly.byYear);
+
+    const yearlyCardHtml = (yearly.years.length > 0) ? (
+      IS_PRO ? `
+        <div class="chart-card full">
+          <p class="chart-card-title">年別比較（月ごと）<span class="pr-label" style="border-color:var(--seal-green);color:var(--seal-green);">Pro</span></p>
+          <div class="chart-wrap"><canvas id="yearlyChart"></canvas></div>
+        </div>` : `
+        <div class="chart-card full locked">
+          <div>
+            <b>年別比較（月ごと）はPro限定です</b>
+            <p>前年・今年の月ごとの推移を重ねて比較できます。</p>
+            <button class="pro-link-btn" id="scrollToProBtnYearly">Pro版について見る</button>
+          </div>
+        </div>`
+    ) : "";
+
     summaryArea.innerHTML = `
+      ${thresholdBannerHtml}
       <div class="total-block">
         <div>
           <div class="total-label">合算収益額（除外設定を反映済み）</div>
@@ -982,6 +1080,7 @@
           <p class="chart-card-title">${escapeHtml(c.sourceLabel)}別の構成比</p>
           <div class="chart-wrap"><canvas id="compositionChart"></canvas></div>
         </div>
+        ${yearlyCardHtml}
       </div>
       <div class="notice">
         副業として${escapeHtml(c.incomeWord)}を得ている場合、給与以外の所得が年間<b>20万円</b>を超えると確定申告が必要になるケースがあります（専業の場合は基礎控除等により基準が異なります）。正確な基準や制度改正の有無は、必ず<b>国税庁の最新情報</b>でご確認ください。
@@ -990,6 +1089,16 @@
 
     renderChart(aspLabels, monthKeys, agg.perMonth);
     renderCompositionChart(aspLabels, agg.perAsp);
+    if(IS_PRO) renderYearlyChart(yearly.years, yearly.byYear);
+
+    const scrollBtnYearly = document.getElementById("scrollToProBtnYearly");
+    if(scrollBtnYearly) scrollBtnYearly.addEventListener("click", function(){
+      document.getElementById("proSection").scrollIntoView({behavior:"smooth"});
+    });
+    const scrollBtnBanner = document.getElementById("scrollToProBtnBanner");
+    if(scrollBtnBanner) scrollBtnBanner.addEventListener("click", function(){
+      document.getElementById("proSection").scrollIntoView({behavior:"smooth"});
+    });
   }
 
   function formatYen(n){
@@ -1064,6 +1173,96 @@
     });
   }
 
+  // ---------- 複数年比較（Pro機能） ----------
+  function computeYearlyBreakdown(perMonth){
+    const byYear = {};
+    Object.keys(perMonth).forEach(key=>{
+      if(key === "不明") return;
+      const m = key.match(/^(\d{4})-(\d{2})$/);
+      if(!m) return;
+      const year = m[1], monthIdx = parseInt(m[2],10) - 1;
+      if(!byYear[year]) byYear[year] = new Array(12).fill(0);
+      let monthTotal = 0;
+      Object.values(perMonth[key]).forEach(v=> monthTotal += (v||0));
+      byYear[year][monthIdx] += monthTotal;
+    });
+    const years = Object.keys(byYear).sort();
+    return { years, byYear };
+  }
+
+  function renderYearlyChart(years, byYear){
+    const ctx = document.getElementById("yearlyChart");
+    if(!ctx) return;
+    if(yearlyChartInstance) yearlyChartInstance.destroy();
+    if(years.length === 0){
+      yearlyChartInstance = null;
+      return;
+    }
+    const monthLabels = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+    const datasets = years.map((y, idx)=>({
+      label: y + "年",
+      data: byYear[y].map(v=>Math.round(v)),
+      borderColor: COLORS[idx % COLORS.length],
+      backgroundColor: COLORS[idx % COLORS.length],
+      fill:false,
+      tension:.25,
+      spanGaps:true,
+    }));
+    yearlyChartInstance = new Chart(ctx, {
+      type: "line",
+      data: { labels: monthLabels, datasets: datasets },
+      options: {
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{ display:true, position:"bottom", labels:{ boxWidth:10, font:{ family:"'Noto Sans JP', sans-serif", size:11 } } },
+          tooltip:{ callbacks:{ label:(c)=> c.dataset.label + "：¥" + c.parsed.y.toLocaleString("ja-JP") } }
+        },
+        scales:{
+          x:{ grid:{ display:false }, ticks:{ font:{ family:"'Zen Kaku Gothic New', sans-serif", size:11 } } },
+          y:{ ticks:{ callback:(v)=> "¥"+Number(v).toLocaleString("ja-JP"), font:{size:11} }, grid:{ color:"#E3DCC9" } }
+        }
+      }
+    });
+  }
+
+  // ---------- 20万円ラインアラート（Pro機能） ----------
+  function computeCurrentYearTotal(byYear){
+    const thisYear = String(new Date().getFullYear());
+    if(byYear[thisYear]) return byYear[thisYear].reduce((a,b)=>a+b,0);
+    return null; // 今年のデータがまだ無い場合は null
+  }
+
+  function renderThresholdBanner(byYear){
+    const total = computeCurrentYearTotal(byYear);
+    if(total == null) return "";
+    const thisYear = new Date().getFullYear();
+    if(!IS_PRO){
+      if(total < 150000) return "";
+      return `
+        <div class="threshold-banner watch">
+          <span class="tag">Pro限定</span>
+          今年（${thisYear}年）の集計額が20万円の基準に近づいている可能性があります。詳しい金額の表示はPro版で確認できます。
+          <button class="pro-link-btn" id="scrollToProBtnBanner">Pro版について見る</button>
+        </div>`;
+    }
+    if(total >= 200000){
+      return `
+        <div class="threshold-banner alert">
+          <span class="tag">要確認</span>
+          今年（${thisYear}年）の集計額は<b>¥${formatYen(total)}</b>で、20万円の基準を超えています。副業の所得区分によっては確定申告が必要になる場合があります。詳しくは国税庁の最新情報をご確認いただくか、税理士等にご相談ください。
+        </div>`;
+    }
+    if(total >= 150000){
+      return `
+        <div class="threshold-banner watch">
+          <span class="tag">注意</span>
+          今年（${thisYear}年）の集計額は<b>¥${formatYen(total)}</b>です。20万円の基準まで残り¥${formatYen(200000-total)}ほどです。
+        </div>`;
+    }
+    return "";
+  }
+
   function renderAccountingGrid(){
     accountingGrid.innerHTML = ACCOUNTING_SOFTWARE.map(a => `
       <a class="accounting-card" href="${a.url}" target="_blank" rel="noopener sponsored">
@@ -1077,6 +1276,104 @@
     renderMapping();
     renderSummary();
     renderAccountingGrid();
+    renderChecklist();
+  }
+
+  // ---------- 確定申告チェックリスト（Pro機能） ----------
+  const CHECKLIST_ITEMS = [
+    {id:"gather_csv", label:"各媒体・ASPの報酬明細CSVをダウンロードして収益帳に取り込む"},
+    {id:"organize_receipts", label:"経費のレシート・領収書を整理する"},
+    {id:"import_accounting", label:"集計結果を会計ソフトに取り込む"},
+    {id:"prepare_kessan", label:"収支内訳書／青色申告決算書を作成する"},
+    {id:"prepare_mynumber", label:"マイナンバーカード・e-Taxの利用者識別番号を準備する"},
+    {id:"submit_etax", label:"e-Taxまたは税務署へ提出する"},
+  ];
+
+  function taxFilingDeadline(){
+    const now = new Date();
+    let year = now.getFullYear();
+    let deadline = new Date(year, 2, 15, 23, 59, 59); // 3月15日23:59:59まで（月は0始まり）
+    if(now > deadline){
+      year += 1;
+      deadline = new Date(year, 2, 15, 23, 59, 59);
+    }
+    return {deadline, year};
+  }
+
+  function checklistStorageKey(year){
+    return "shuekicho_checklist_" + year;
+  }
+
+  function loadChecklistState(year){
+    try{
+      const raw = localStorage.getItem(checklistStorageKey(year));
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
+  }
+
+  function saveChecklistState(year, state){
+    try{ localStorage.setItem(checklistStorageKey(year), JSON.stringify(state)); }catch(e){}
+  }
+
+  function renderChecklist(){
+    const area = document.getElementById("checklistArea");
+    if(!area) return;
+
+    if(!IS_PRO){
+      area.innerHTML = `
+        <div class="checklist-locked">
+          <b>確定申告チェックリストはPro限定です</b>
+          <p>申告期限までのカウントダウンと、やることリストをこのブラウザに保存しながら管理できます。</p>
+          <button class="pro-link-btn" id="scrollToProBtnChecklist">Pro版について見る</button>
+        </div>`;
+      const btn = document.getElementById("scrollToProBtnChecklist");
+      if(btn) btn.addEventListener("click", function(){
+        document.getElementById("proSection").scrollIntoView({behavior:"smooth"});
+      });
+      return;
+    }
+
+    const {deadline, year} = taxFilingDeadline();
+    const now = new Date();
+    const daysLeft = Math.max(0, Math.ceil((deadline - now) / (1000*60*60*24)));
+    const state = loadChecklistState(year);
+
+    const itemsHtml = CHECKLIST_ITEMS.map(item=>{
+      const done = !!state[item.id];
+      return `
+        <li class="${done ? "done" : ""}">
+          <input type="checkbox" id="chk_${item.id}" data-item-id="${item.id}" ${done ? "checked" : ""}>
+          <label for="chk_${item.id}" style="flex:1;cursor:pointer;">${escapeHtml(item.label)}</label>
+        </li>`;
+    }).join("");
+
+    area.innerHTML = `
+      <div class="deadline-block">
+        <div>
+          <div class="deadline-figure">残り${daysLeft}日</div>
+          <div class="deadline-label">${year}年の確定申告期限（3月15日）まで</div>
+        </div>
+      </div>
+      <ul class="checklist-list">${itemsHtml}</ul>
+      <button class="btn btn-outline checklist-reset" id="checklistResetBtn" type="button">チェックをリセット</button>
+      <p class="hint" style="margin-top:10px;">申告期限は年により変更される場合があります。必ず国税庁の最新情報でご確認ください。チェック状態はこのブラウザにのみ保存され、どこにも送信されません。</p>
+    `;
+
+    CHECKLIST_ITEMS.forEach(item=>{
+      const cb = document.getElementById("chk_" + item.id);
+      if(!cb) return;
+      cb.addEventListener("change", function(){
+        const s = loadChecklistState(year);
+        s[item.id] = cb.checked;
+        saveChecklistState(year, s);
+        renderChecklist();
+      });
+    });
+    const resetBtn = document.getElementById("checklistResetBtn");
+    if(resetBtn) resetBtn.addEventListener("click", function(){
+      saveChecklistState(year, {});
+      renderChecklist();
+    });
   }
 
   // ---------- Export ----------
@@ -1121,6 +1418,61 @@
       }
     };
     reader.readAsText(file);
+  });
+
+  // ---------- 税理士渡し用レポート（Pro機能） ----------
+  function buildReportHtml(){
+    const c = cfg();
+    const agg = computeAggregates();
+    const aspLabels = Object.keys(agg.perAsp);
+    const now = new Date();
+    const dateStr = now.getFullYear() + "年" + (now.getMonth()+1) + "月" + now.getDate() + "日";
+
+    const rows = aspLabels.map(label=>{
+      const v = agg.perAsp[label];
+      const pct = agg.grandTotal ? (v/agg.grandTotal*100).toFixed(1) : "0.0";
+      return `<tr><td>${escapeHtml(label)}</td><td class="num">¥${formatYen(v)}</td><td class="num">${pct}%</td></tr>`;
+    }).join("");
+
+    return `
+      <h1 class="report-title">収益帳 集計レポート</h1>
+      <p class="report-meta">作成日：${dateStr}　／　区分：${escapeHtml(c.sourceLabel)}集計（${escapeHtml(c.incomeWord)}）</p>
+      <table class="report-table">
+        <thead><tr><th>${escapeHtml(c.sourceLabel)}</th><th class="num">金額</th><th class="num">構成比</th></tr></thead>
+        <tbody>
+          ${rows}
+          <tr><td><b>合計</b></td><td class="num"><b>¥${formatYen(agg.grandTotal)}</b></td><td class="num"><b>100.0%</b></td></tr>
+        </tbody>
+      </table>
+      <p class="report-total">合算収益額：¥${formatYen(agg.grandTotal)}（${agg.usedCount}行を集計／${agg.excludedCount}行を除外）</p>
+      <p class="report-note">
+        本レポートは「収益帳」（https://shuekicho.mumeinoapp.workers.dev/）により、ユーザーが取り込んだCSVデータをブラウザ内で集計したものです。
+        確定申告書そのものではなく、あくまで収益集計の参考資料です。所得区分の判定や実際の申告内容については、国税庁の最新情報をご確認いただくか、税理士等の専門家にご確認ください。
+        集計から除外した行はステータス列に基づく除外設定（${escapeHtml(excludeInput.value || "なし")}）を反映しています。
+      </p>
+    `;
+  }
+
+  document.getElementById("pdfReportBtn").addEventListener("click", function(){
+    if(!IS_PRO){
+      alert(
+        "税理士渡し用レポートの印刷/PDF保存はPro版限定の機能です。\n" +
+        "Pro版（月額¥500・年額¥5,000）にご登録いただくとご利用いただけます。"
+      );
+      document.getElementById("proSection").scrollIntoView({behavior:"smooth"});
+      return;
+    }
+    if(st().files.length === 0){
+      alert("先にCSVを取り込んで集計結果を表示してください。");
+      return;
+    }
+    document.getElementById("reportPrintRoot").innerHTML = buildReportHtml();
+    document.body.classList.add("report-mode");
+    window.print();
+  });
+
+  window.addEventListener("afterprint", function(){
+    document.body.classList.remove("report-mode");
   });
 
   function downloadText(text, filename, mime){
